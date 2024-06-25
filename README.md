@@ -1,124 +1,142 @@
+Part 1: Environment setup
+Set up the Cypress real world application
+1.Clone the Cypress Real World App repository, from:
+https://github.com/manalimj/cypress-realworld-app-develop
+2.a.npm install
+b.npm start
+Note: There may be some anomalies for you locally on your own device. Specific versions may be required for node and yarn, etc.
+Note: There is a pre-built DB seed command in the code that may be used for setting up test data. cy.task("db:seed");
+Note: Cypress supports both Javascript and Typescript. Feel free to utilise either of these (Fund Recs currently uses Javascript)
+Set up Cypress
+1.Install Cypress if it is not already installed
+2.Open Cypress test runner using command: npx cypress open
 
+Part 2: Writing Tests
+This repository contains automated tests for the Cypress Real World App, designed to ensure the application functions correctly across various scenarios. The tests are organized in the `cypress/tests` folder.
+1. User Authentication Test
+- **Sign Up, Log In, and Log Out:**
+  
+- **Invalid Login Attempts:**
+  - Ensure that appropriate error messages are displayed when invalid login credentials are used.
 
-The Cypress Real-World App uses the [@cypress/code-coverage](https://github.com/cypress-io/code-coverage) plugin to generate code coverage reports for the app frontend and backend.
+ 2. Transaction Test
+- **Initiate Payment:**
+  - Verify that a user can initiate a payment to another user.
 
-To generate a code coverage report:
+- **Balance Update:**
+  - Ensure the payment amount is correctly deducted from the payer’s balance and added to the recipient’s balance.
 
-1. Start the development server with coverage enabled by running `yarn dev:coverage`.
-2. Run `yarn cypress:run --env coverage=true` and wait for the test run to complete.
-3. Once the test run is complete, you can view the report at `coverage/index.html`.
+- **Payment History:**
+  - Verify that the payment history is updated correctly after transactions.
 
-## 3rd Party Authentication Providers
+3. Notification Test
+- **Display Notifications:**
+  - Verify that notifications are displayed for different events such as successful payment and received payment.
 
-Support for 3rd party authentication is available in the application to demonstrate the concepts on logging in with a 3rd party provider.
+- **Dismiss Notifications:**
+  - Ensure that notifications can be dismissed and do not reappear once dismissed.
 
-The app contains different entry points for each provider. There is a separate **index** file for each provider, and to use one, you must replace the current **index.tsx** file with the desired one. The following providers are supported:
+4. UI Validation Test
+- **UI Elements Presence:**
+  - Verify the presence and correct rendering of key UI elements (e.g., buttons, input fields, navigation menus) on the dashboard page.
 
-- [Auth0](#auth0) (index.auth0.tsx)
-- [Okta](#okta) (index.okta.tsx)
-- [Amazon Cognito](#amazon-cognito) (index.cognito.tsx)
-- [Google](#google) (index.google.tsx)
+Part 3: Advanced Testing
+This repository contains advanced testing scenarios for the Cypress Real World App, including mocking and stubbing API responses and creating custom Cypress commands.
+ 1. Mocking and Stubbing
+ Objective
+Write a test that uses `cy.intercept()` to mock an API response for a transaction and verify that the application handles the mocked response correctly.
+ Implementation
+1. **Mock API Response:**
+   - Use `cy.intercept()` to intercept the network request for initiating a transaction and provide a mocked response.
+   
+2. **Verify Application Behavior:**
+   - Verify that the application correctly handles the mocked API response, updating the UI and transaction history as expected.
 
-### Auth0
+#### Example Test
+```javascript
+describe('Mocking and Stubbing', () => {
+  it('should handle a mocked API response for a transaction', () => {
+    // Intercept the transaction API call and provide a mock response
+    cy.intercept('POST', '/api/transactions', {
+      statusCode: 200,
+      body: {
+        id: 'mock-transaction-id',
+        amount: 100,
+        payerId: 'user1',
+        payeeId: 'user2',
+        status: 'success',
+      },
+    }).as('mockTransaction');
 
-The [Auth0](https://auth0.com/) tests have been rewritten to take advantage of our [`cy.session`](https://docs.cypress.io/api/commands/session) and [`cy.origin`](https://docs.cypress.io/api/commands/origin) commands.
+    // Perform the action that triggers the API call
+    cy.visit('/transactions');
+    cy.get('#initiate-transaction-button').click();
+    cy.get('#amount-input').type('100');
+    cy.get('#payee-select').select('user2');
+    cy.get('#submit-transaction-button').click();
 
-Prerequisites include an Auth0 account and a Tenant configured for use with a SPA. Environment variables from Auth0 are to be placed in the [.env](./.env). For more details see [Auth0 Application Setup](http://on.cypress.io/auth0#Auth0-Application-Setup) and [Setting Auth0 app credentials in Cypress](http://on.cypress.io/auth0#Setting-Auth0-app-credentials-in-Cypress).
+    // Wait for the intercepted API call
+    cy.wait('@mockTransaction');
 
-To start the application with Auth0, replace the current **src/index.tsx** file with the **src/index.auth0.tsx** file and start the application with `yarn dev:auth0` and run Cypress with `yarn cypress:open`.
+    // Verify the UI updates
+    cy.get('#transaction-history').should('contain', 'mock-transaction-id');
+    cy.get('#transaction-history').should('contain', '100');
+  });
+});
+```
 
-The only passing spec on this branch will be the [auth0 spec](./cypress/tests/ui-auth-providers/auth0.spec.ts); all others will fail. Please note that your test user will need to authorize your Auth0 app before the tests will pass.
+2. Custom Commands
+Create a custom Cypress command for a repetitive task (e.g., logging in, navigating to a specific page, etc.) and demonstrate its usage in one of your tests.
+   
+.Use Custom Command:**
+   - Use the custom command in your test to perform the repetitive task.
 
-### Okta
+Example Custom Command
+```javascript
+// cypress/support/commands.js
+Cypress.Commands.add('login', (username, password) => {
+  cy.visit('/login');
+  cy.get('#username').type(username);
+  cy.get('#password').type(password);
+  cy.get('#login-button').click();
+});
+```
 
-A [guide has been written with detail around adapting the RWA](http://on.cypress.io/okta) to use [Okta][okta] and to explain the programmatic command used for Cypress tests.
+#### Example Test Using Custom Command
+```javascript
+describe('Custom Commands', () => {
+  it('should log in and navigate to the dashboard', () => {
+    // Use the custom login command
+    cy.login('testuser', 'password123');
 
-Prerequisites include an [Okta][okta] account and [application configured for use with a SPA][oktacreateapp]. Environment variables from [Okta][okta] are to be placed in the [.env](./.env).
+    // Verify successful login by checking for dashboard elements
+    cy.url().should('include', '/dashboard');
+    cy.get('#welcome-message').should('contain', 'Welcome, testuser');
+  });
+});
+```
 
-To start the application with Okta, replace the current **src/index.tsx** file with the **src/index.okta.tsx** file and start the application with `yarn dev:okta` and run Cypress with `yarn cypress:open`.
+ Project Setup Instructions
 
-The **only passing spec on this branch** will be the [okta spec](./cypress/tests/ui-auth-providers/okta.spec.ts); all others will fail.
+1. **Install Dependencies:**
+   - Ensure you have Node.js and npm installed on your system.
+   - Run `npm install` in the project directory to install Cypress and other dependencies.
 
-### Amazon Cognito
+2. **Adding Tests:**
+   - Place your test files in the `cypress/tests` folder.
 
-A [guide has been written with detail around adapting the RWA](http://on.cypress.io/amazon-cognito) to use [Amazon Cognito][cognito] as the authentication solution and to explain the programmatic command used for Cypress tests.
+3. **Running Tests:**
+   - Open Cypress Test Runner: `npx cypress open`
+   - Run all tests: `npx cypress run`
 
-Prerequisites include an [Amazon Cognito][cognito] account. Environment variables from [Amazon Cognito][cognito] are provided by the [AWS Amplify CLI][awsamplify].
+Custom Commands
+- **Objective:** Simplify repetitive tasks in tests.
+- **Custom Command:** `Cypress.Commands.add('login', (username, password) => {...});`
+- **Example Test:** See the example provided in the "Custom Commands" section.
 
-- A user pool is required (identity pool is not used here)
-  - The user pool must have a hosted UI domain configured, which must:
-    - allow callback and sign-out URLs of `http://localhost:3000/`,
-    - allow implicit grant Oauth grant type,
-    - allow these OpenID Connect scopes:
-      - aws.cognito.signin.user.admin
-      - email
-      - openid
-  - The user pool must have an app client configured, with:
-    - enabled auth flow `ALLOW_USER_PASSWORD_AUTH`, only for programmatic login flavor of test.
-    - The `cy.origin()` flavor of test only requires auth flow `ALLOW_USER_SRP_AUTH`, and does not require `ALLOW_USER_PASSWORD_AUTH`.
-  - The user pool must have a user corresponding to the `AWS_COGNITO` env vars mentioned below, and the user's Confirmation Status must be `Confirmed`. If it is `Force Reset Password`, then use a browser to log in once at `http://localhost:3000` while `yarn dev:cognito` is running to reset their password.
+ Assumptions and Limitations
+- Assumes the backend API is functioning correctly.
+- Tests are designed based on the current UI and may need updates if the UI changes.
 
-The test knobs are in a few places:
+By following the steps and examples provided, you can implement advanced testing scenarios in your Cypress Real World App, enhancing the robustness and reliability of your test suite.
 
-- The `.env` file has `VITE_AUTH_TOKEN_NAME` and vars beginning `AWS_COGNITO`. Be careful not to commit any secrets.
-- Both `scripts/mock-aws-exports.js` and `scripts/mock-aws-exports-es5.js` must have the same data; only their export statements differ. These files can be edited manually or exported from the amplify CLI.
-- `cypress.config.ts` has `cognito_programmatic_login` to control flavor of the test.
-
-To start the application with Cognito, replace the current **src/index.tsx** file with the **src/index.cognito.tsx** file and start the application with `yarn dev:cognito` and run Cypress with `yarn cypress:open`. `yarn dev` may need to have been run once first.
-
-The **only passing spec on this branch** will be the [cognito spec](./cypress/tests/ui-auth-providers/cognito.spec.ts); all others will fail.
-
-### Google
-
-A [guide has been written with detail around adapting the RWA](https://docs.cypress.io/guides/testing-strategies/google-authentication.html) to use [Google][google] as the authentication solution and to explain the programmatic command used for Cypress tests.
-
-Prerequisites include an [Google][google] account. Environment variables from [Google][google] are to be placed in the [.env](./.env).
-
-To start the application with Google, replace the current **src/index.tsx** file with the **src/index.google.tsx** file and start the application with `yarn dev:google` and run Cypress with `yarn cypress:open`.
-
-The **only passing spec** when run with `yarn dev:google` will be the [google spec](./cypress/tests/ui-auth-providers/google.spec.ts); all others will fail.
-
-## License
-
-[![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/cypress-io/cypress/blob/master/LICENSE)
-
-This project is licensed under the terms of the [MIT license](/LICENSE).
-
-[reactjs]: https://reactjs.org
-[xstate]: https://xstate.js.org
-[express]: https://expressjs.com
-[lowdb]: https://github.com/typicode/lowdb
-[typescript]: https://typescriptlang.org
-[cypresscloud]: https://cloud.cypress.io/projects/7s5okt/runs
-[material-ui]: https://material-ui.com
-[okta]: https://okta.com
-[auth0]: https://auth0.com
-[oktacreateapp]: https://developer.okta.com/docs/guides/sign-into-spa/react/create-okta-application/
-[cognito]: https://aws.amazon.com/cognito
-[awsamplify]: https://amplify.aws
-[google]: https://google.com
-
-## Contributors ✨
-
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tr>
-    <td align="center"><a href="http://www.kevinold.com"><img src="https://avatars0.githubusercontent.com/u/21967?v=4" width="100px;" alt=""/><br /><sub><b>Kevin Old</b></sub></a></td>
-    <td align="center"><a href="https://twitter.com/amirrustam"><img src="https://avatars0.githubusercontent.com/u/334337?v=4" width="100px;" alt=""/><br /><sub><b>Amir Rustamzadeh</b></sub></a></td>
-    <td align="center"><a href="https://twitter.com/be_mann"><img src="https://avatars2.githubusercontent.com/u/1268976?v=4" width="100px;" alt=""/><br /><sub><b>Brian Mann</b></sub></a></td>
-    <td align="center"><a href="https://glebbahmutov.com/"><img src="https://avatars1.githubusercontent.com/u/2212006?v=4" width="100px;" alt=""/><br /><sub><b>Gleb Bahmutov</b></sub></a></td>
-    <td align="center"><a href="http://www.bencodezen.io"><img src="https://avatars0.githubusercontent.com/u/4836334?v=4" width="100px;" alt=""/><br /><sub><b>Ben Hong</b></sub></a></td>
-    <td align="center"><a href="https://github.com/davidkpiano"><img src="https://avatars2.githubusercontent.com/u/1093738?v=4" width="100px;" alt=""/><br /><sub><b>David Khourshid</b></sub></a></td>
-  </tr>
-</table>
-
-<!-- markdownlint-enable -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!!
